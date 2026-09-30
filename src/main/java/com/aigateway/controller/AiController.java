@@ -9,6 +9,12 @@ import com.aigateway.service.GeminiService;
 import com.aigateway.service.GeminiService.AnalyzeResult;
 import com.aigateway.service.GeminiService.GeminiResult;
 import com.aigateway.security.AuthenticatedUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/ai")
+@Tag(name = "AI", description = "Gemini chat and structured analysis")
+@SecurityRequirement(name = "bearerAuth")
 public class AiController {
 
     private static final Logger logger = LoggerFactory.getLogger(AiController.class);
@@ -33,7 +41,18 @@ public class AiController {
     }
 
     @PostMapping("/chat")
+    @Operation(summary = "Send a chat message to the AI provider")
     public ResponseEntity<AiChatResponse> chat(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AiRequest.class),
+                            examples = @ExampleObject(
+                                    value = "{\"message\":\"Explain REST API in one sentence.\"}"
+                            )
+                    )
+            )
             @RequestBody AiRequest request,
             Authentication authentication
     ) {
@@ -78,7 +97,18 @@ public class AiController {
     }
 
     @PostMapping("/analyze")
+    @Operation(summary = "Analyze text and return structured output")
     public ResponseEntity<AnalyzeResponse> analyze(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = AnalyzeRequest.class),
+                            examples = @ExampleObject(
+                                    value = "{\"text\":\"Users report that checkout is extremely slow.\"}"
+                            )
+                    )
+            )
             @RequestBody AnalyzeRequest request,
             Authentication authentication
     ) {
