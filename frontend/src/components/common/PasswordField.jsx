@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 
-function PasswordField({ id, label, value, onChange, autoComplete, error }) {
+function PasswordField({ id, label, value, onChange, autoComplete, error, disabled = false }) {
   const [visible, setVisible] = useState(false)
 
   return (
@@ -17,12 +17,14 @@ function PasswordField({ id, label, value, onChange, autoComplete, error }) {
           autoComplete={autoComplete}
           minLength={6}
           required
+          disabled={disabled}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
         />
         <button
           className="icon-button password-toggle"
           type="button"
+          disabled={disabled}
           onClick={() => setVisible((current) => !current)}
           aria-label={visible ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
         >

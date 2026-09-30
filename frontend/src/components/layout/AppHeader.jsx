@@ -9,8 +9,15 @@ const pageNames = {
   '/usage': 'Usage',
 }
 
-function AppHeader({ onMenuClick }) {
+const statusContent = {
+  checking: { label: 'Checking…', className: 'checking' },
+  online: { label: 'API Online', className: 'online' },
+  offline: { label: 'API Offline', className: 'offline' },
+}
+
+function AppHeader({ onMenuClick, apiStatus }) {
   const { pathname } = useLocation()
+  const status = statusContent[apiStatus] || statusContent.checking
 
   return (
     <header className="app-header">
@@ -23,11 +30,11 @@ function AppHeader({ onMenuClick }) {
           <strong>{pageNames[pathname] || 'AI Gateway'}</strong>
         </div>
       </div>
-      <div className="api-status" aria-label="API status not checked">
-        <span className="status-dot neutral" />
+      <div className="api-status" aria-live="polite" aria-label={`API status: ${status.label}`}>
+        <span className={`status-dot ${status.className}`} />
         <div>
           <span>API Status</span>
-          <strong>Not checked</strong>
+          <strong>{status.label}</strong>
         </div>
       </div>
     </header>

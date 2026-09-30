@@ -1,32 +1,66 @@
-import { Activity, Calculator, Clock3, Coins, Workflow, Zap } from 'lucide-react'
+import { Calculator, Coins } from 'lucide-react'
 import EmptyState from '../components/common/EmptyState'
-import MetricCard from '../components/common/MetricCard'
 import PageHeader from '../components/common/PageHeader'
+import RefreshButton from '../components/common/RefreshButton'
+import UsageError from '../components/common/UsageError'
+import UsageMetricGrid from '../components/common/UsageMetricGrid'
+import useUsage from '../hooks/useUsage'
+import { formatCurrency } from '../utils/formatters'
 
 function UsagePage() {
+  const { usage, loading, refreshing, error, refresh } = useUsage()
+  const initialLoading = loading && !usage
+
+  const renderCost = () => {
+    if (initialLoading) {
+      return <div className="cost-loading" aria-label="Loading cost estimation"><span className="cost-skeleton" /></div>
+    }
+
+    if (!usage) {
+      return (
+        <EmptyState
+          icon={Calculator}
+          title="Cost data unavailable"
+          description="Usage data could not be loaded from the gateway."
+        />
+      )
+    }
+
+    if (!usage.costEstimationAvailable || usage.estimatedCostUsd == null) {
+      return (
+        <EmptyState
+          icon={Calculator}
+          title="Cost estimation unavailable"
+          description="Pricing or token information is unavailable for one or more stored requests."
+        />
+      )
+    }
+
+    return (
+      <div className="cost-value-panel">
+        <span>Estimated provider cost</span>
+        <strong>{formatCurrency(usage.estimatedCostUsd)}</strong>
+        <small>USD · Based on stored token usage</small>
+      </div>
+    )
+  }
+
   return (
     <div className="page-stack">
       <PageHeader
         eyebrow="Monitoring"
         title="Usage"
         description="Understand request volume, performance and estimated provider cost."
+        actions={<RefreshButton onClick={refresh} loading={loading || refreshing} />}
       />
-      <section className="metrics-grid" aria-label="Usage metrics">
-        <MetricCard icon={Workflow} label="Requests" hint="Usage data not loaded" />
-        <MetricCard icon={Zap} label="Tokens" hint="Usage data not loaded" />
-        <MetricCard icon={Clock3} label="Average Latency" hint="Usage data not loaded" />
-        <MetricCard icon={Activity} label="Error Rate" hint="Usage data not loaded" />
-      </section>
+      <UsageError message={error} onRetry={refresh} disabled={loading || refreshing} />
+      <UsageMetricGrid usage={usage} loading={initialLoading} />
       <section className="card cost-card">
         <div className="section-heading">
           <div><p className="eyebrow">Cost estimation</p><h2>Estimated provider cost</h2><p>Calculated from stored token usage and configured model pricing.</p></div>
           <span className="capability-icon"><Coins size={20} /></span>
         </div>
-        <EmptyState
-          icon={Calculator}
-          title="Cost data not loaded"
-          description="The console has not requested usage metrics from the gateway."
-        />
+        {renderCost()}
       </section>
     </div>
   )

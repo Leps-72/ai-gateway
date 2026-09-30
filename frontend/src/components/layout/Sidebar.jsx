@@ -10,6 +10,8 @@ import {
   X,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const navigation = [
   {
@@ -33,6 +35,15 @@ const navigation = [
 ]
 
 function Sidebar({ open, onClose }) {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    onClose()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <aside className={`sidebar ${open ? 'sidebar-open' : ''}`} aria-label="Primary navigation">
       <div className="brand-row">
@@ -67,7 +78,7 @@ function Sidebar({ open, onClose }) {
 
       <div className="sidebar-footer">
         <div className="environment-chip"><Bot size={15} /> Gemini provider</div>
-        <button className="logout-button" type="button" disabled title="Available after authentication integration">
+        <button className="logout-button" type="button" onClick={handleLogout}>
           <LogOut size={18} />
           <span>Logout</span>
         </button>
