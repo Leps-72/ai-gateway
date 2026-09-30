@@ -3,8 +3,8 @@ package com.aigateway.web;
 import com.aigateway.controller.AiController;
 import com.aigateway.exception.GlobalExceptionHandler;
 import com.aigateway.security.AuthenticatedUser;
+import com.aigateway.service.AiGatewayService;
 import com.aigateway.service.ConversationService;
-import com.aigateway.service.GeminiService;
 import com.aigateway.service.RateLimitService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -24,10 +24,10 @@ class RateLimitInterceptorTest {
     @Test
     void rejectedRequestReturns429WithoutCallingGeminiOrSavingConversation() throws Exception {
         ConversationService conversationService = mock(ConversationService.class);
-        GeminiService geminiService = mock(GeminiService.class);
+        AiGatewayService aiGatewayService = mock(AiGatewayService.class);
         RateLimitService rateLimitService = new RateLimitService(1, 60);
         RateLimitInterceptor interceptor = new RateLimitInterceptor(rateLimitService);
-        AiController controller = new AiController(conversationService, geminiService);
+        AiController controller = new AiController(conversationService, aiGatewayService);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .addInterceptors(interceptor)
                 .setControllerAdvice(new GlobalExceptionHandler())
@@ -48,7 +48,7 @@ class RateLimitInterceptorTest {
                 .andExpect(jsonPath("$.error").value("RATE_LIMIT_EXCEEDED"))
                 .andExpect(jsonPath("$.path").value("/ai/chat"));
 
-        verifyNoInteractions(geminiService);
+        verifyNoInteractions(aiGatewayService);
         verifyNoInteractions(conversationService);
     }
 }

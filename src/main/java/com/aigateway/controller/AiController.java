@@ -4,10 +4,10 @@ import com.aigateway.dto.AiRequest;
 import com.aigateway.dto.AiChatResponse;
 import com.aigateway.dto.AnalyzeRequest;
 import com.aigateway.dto.AnalyzeResponse;
+import com.aigateway.provider.AiProviderResult;
+import com.aigateway.provider.AnalyzeProviderResult;
+import com.aigateway.service.AiGatewayService;
 import com.aigateway.service.ConversationService;
-import com.aigateway.service.GeminiService;
-import com.aigateway.service.GeminiService.AnalyzeResult;
-import com.aigateway.service.GeminiService.GeminiResult;
 import com.aigateway.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -33,11 +33,11 @@ public class AiController {
     private static final Logger logger = LoggerFactory.getLogger(AiController.class);
 
     private final ConversationService conversationService;
-    private final GeminiService geminiService;
+    private final AiGatewayService aiGatewayService;
 
-    public AiController(ConversationService conversationService, GeminiService geminiService) {
+    public AiController(ConversationService conversationService, AiGatewayService aiGatewayService) {
         this.conversationService = conversationService;
-        this.geminiService = geminiService;
+        this.aiGatewayService = aiGatewayService;
     }
 
     @PostMapping("/chat")
@@ -62,10 +62,10 @@ public class AiController {
 
         long startTime = System.nanoTime();
         Long userId = ((AuthenticatedUser) authentication.getPrincipal()).userId();
-        GeminiResult result;
+        AiProviderResult result;
 
         try {
-            result = geminiService.generateResponse(request.getMessage());
+            result = aiGatewayService.chat(request.getMessage());
         } catch (RuntimeException exception) {
             long latencyMs = elapsedMilliseconds(startTime);
             saveFailedConversation(request.getMessage(), userId, latencyMs);
@@ -77,8 +77,8 @@ public class AiController {
         conversationService.saveConversation(
                 request.getMessage(),
                 result.response(),
-                "gemini",
-                geminiService.getModel(),
+                aiGatewayService.getProviderName(),
+                aiGatewayService.getModelName(),
                 result.inputTokens(),
                 result.outputTokens(),
                 latencyMs,
@@ -89,8 +89,8 @@ public class AiController {
 
         AiChatResponse response = new AiChatResponse(
                 result.response(),
-                "gemini",
-                geminiService.getModel(),
+                aiGatewayService.getProviderName(),
+                aiGatewayService.getModelName(),
                 "success"
         );
         return ResponseEntity.ok(response);
@@ -118,10 +118,10 @@ public class AiController {
 
         long startTime = System.nanoTime();
         Long userId = ((AuthenticatedUser) authentication.getPrincipal()).userId();
-        AnalyzeResult result;
+        AnalyzeProviderResult result;
 
         try {
-            result = geminiService.analyze(request.getText());
+            result = aiGatewayService.analyze(request.getText());
         } catch (RuntimeException exception) {
             long latencyMs = elapsedMilliseconds(startTime);
             saveFailedConversation(request.getText(), userId, latencyMs);
@@ -133,8 +133,8 @@ public class AiController {
         conversationService.saveConversation(
                 request.getText(),
                 result.responseJson(),
-                "gemini",
-                geminiService.getModel(),
+                aiGatewayService.getProviderName(),
+                aiGatewayService.getModelName(),
                 result.inputTokens(),
                 result.outputTokens(),
                 latencyMs,
@@ -142,15 +142,20 @@ public class AiController {
                 "success"
         );
         logAiRequest(userId, "analyze", "success", latencyMs);
-        return ResponseEntity.ok(result.response());
+        AnalyzeResponse response = new AnalyzeResponse();
+        response.setSummary(result.summary());
+        response.setSentiment(result.sentiment());
+        response.setCategory(result.category());
+        response.setPriority(result.priority());
+        return ResponseEntity.ok(response);
     }
 
     private void saveFailedConversation(String message, Long userId, long latencyMs) {
         conversationService.saveConversation(
                 message,
                 null,
-                "gemini",
-                geminiService.getModel(),
+                aiGatewayService.getProviderName(),
+                aiGatewayService.getModelName(),
                 null,
                 null,
                 latencyMs,
@@ -161,10 +166,11 @@ public class AiController {
 
     private void logAiRequest(Long userId, String type, String status, long latencyMs) {
         logger.info(
-                "AI_REQUEST userId={} type={} provider=gemini model={} status={} latencyMs={}",
+                "AI_REQUEST userId={} type={} provider={} model={} status={} latencyMs={}",
                 userId,
                 type,
-                geminiService.getModel(),
+                aiGatewayService.getProviderName(),
+                aiGatewayService.getModelName(),
                 status,
                 latencyMs
         );

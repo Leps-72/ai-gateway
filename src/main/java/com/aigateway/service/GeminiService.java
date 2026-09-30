@@ -13,10 +13,12 @@ import com.google.genai.types.HttpOptions;
 import com.google.genai.types.HttpRetryOptions;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
-import com.aigateway.dto.AnalyzeResponse;
 import com.aigateway.exception.AiProviderException;
 import com.aigateway.exception.AiTimeoutException;
 import com.aigateway.exception.InvalidAiResponseException;
+import com.aigateway.provider.AiProvider;
+import com.aigateway.provider.AiProviderResult;
+import com.aigateway.provider.AnalyzeProviderResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,8 +26,8 @@ import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.Set;
 
-@Service
-public class GeminiService {
+@Service("geminiProvider")
+public class GeminiService implements AiProvider {
 
     private static final String MODEL = "gemini-3.8-flash";
     private static final Set<String> RESPONSE_FIELDS =
@@ -85,7 +87,8 @@ public class GeminiService {
         this.objectMapper = objectMapper;
     }
 
-    public GeminiResult generateResponse(String message) {
+    @Override
+    public AiProviderResult chat(String message) {
         if (client == null) {
             throw new AiProviderException("AI provider is not configured.");
         }
@@ -99,7 +102,7 @@ public class GeminiService {
 
             TokenUsage usage = getTokenUsage(response);
 
-            return new GeminiResult(responseText, usage.inputTokens(), usage.outputTokens());
+            return new AiProviderResult(responseText, usage.inputTokens(), usage.outputTokens());
         } catch (InvalidAiResponseException exception) {
             throw exception;
         } catch (RuntimeException exception) {
@@ -107,7 +110,8 @@ public class GeminiService {
         }
     }
 
-    public AnalyzeResult analyze(String text) {
+    @Override
+    public AnalyzeProviderResult analyze(String text) {
         if (client == null) {
             throw new AiProviderException("AI provider is not configured.");
         }
@@ -123,12 +127,15 @@ public class GeminiService {
                     ANALYZE_CONFIG
             );
             String responseText = response.text();
-            AnalyzeResponse analyzeResponse = parseAnalyzeResponse(responseText);
-            String responseJson = objectMapper.writeValueAsString(analyzeResponse);
+            AnalyzeContent analyzeContent = parseAnalyzeResponse(responseText);
+            String responseJson = objectMapper.writeValueAsString(analyzeContent);
             TokenUsage usage = getTokenUsage(response);
 
-            return new AnalyzeResult(
-                    analyzeResponse,
+            return new AnalyzeProviderResult(
+                    analyzeContent.summary(),
+                    analyzeContent.sentiment(),
+                    analyzeContent.category(),
+                    analyzeContent.priority(),
                     responseJson,
                     usage.inputTokens(),
                     usage.outputTokens()
@@ -142,7 +149,7 @@ public class GeminiService {
         }
     }
 
-    private AnalyzeResponse parseAnalyzeResponse(String responseText) {
+    private AnalyzeContent parseAnalyzeResponse(String responseText) {
         if (responseText == null || responseText.isBlank()) {
             throw new InvalidAiResponseException("Gemini returned an empty analyze response.");
         }
@@ -153,12 +160,17 @@ public class GeminiService {
                 throw new InvalidAiResponseException("Gemini returned an invalid analyze response.");
             }
             for (String field : RESPONSE_FIELDS) {
-                if (!json.has(field)) {
+                if (!json.has(field) || !json.get(field).isTextual()) {
                     throw new InvalidAiResponseException("Gemini analyze response is missing a required field.");
                 }
             }
 
-            AnalyzeResponse result = objectMapper.treeToValue(json, AnalyzeResponse.class);
+            AnalyzeContent result = new AnalyzeContent(
+                    json.get("summary").asText(),
+                    json.get("sentiment").asText(),
+                    json.get("category").asText(),
+                    json.get("priority").asText()
+            );
             validateAnalyzeResponse(result);
             return result;
         } catch (InvalidAiResponseException exception) {
@@ -168,11 +180,11 @@ public class GeminiService {
         }
     }
 
-    private void validateAnalyzeResponse(AnalyzeResponse response) {
-        if (response.getSummary() == null || response.getSummary().isBlank()
-                || !SENTIMENTS.contains(response.getSentiment())
-                || !CATEGORIES.contains(response.getCategory())
-                || !PRIORITIES.contains(response.getPriority())) {
+    private void validateAnalyzeResponse(AnalyzeContent response) {
+        if (response.summary() == null || response.summary().isBlank()
+                || !SENTIMENTS.contains(response.sentiment())
+                || !CATEGORIES.contains(response.category())
+                || !PRIORITIES.contains(response.priority())) {
             throw new InvalidAiResponseException("Gemini returned invalid analyze field values.");
         }
     }
@@ -251,18 +263,21 @@ public class GeminiService {
         return new TokenUsage(inputTokens, outputTokens);
     }
 
-    public String getModel() {
+    @Override
+    public String getProviderName() {
+        return "gemini";
+    }
+
+    @Override
+    public String getModelName() {
         return MODEL;
     }
 
-    public record GeminiResult(String response, Long inputTokens, Long outputTokens) {
-    }
-
-    public record AnalyzeResult(
-            AnalyzeResponse response,
-            String responseJson,
-            Long inputTokens,
-            Long outputTokens
+    private record AnalyzeContent(
+            String summary,
+            String sentiment,
+            String category,
+            String priority
     ) {
     }
 
