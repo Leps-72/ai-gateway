@@ -4,6 +4,7 @@ import com.aigateway.dto.ErrorResponse;
 import com.aigateway.service.AuthService.UsernameAlreadyExistsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -60,6 +61,22 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(
+            RateLimitExceededException exception,
+            HttpServletRequest request
+    ) {
+        ErrorResponse response = errorResponse(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "RATE_LIMIT_EXCEEDED",
+                "Too many AI requests. Please try again later.",
+                request
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getRetryAfterSeconds()))
+                .body(response);
+    }
+
     @ExceptionHandler(InvalidAiResponseException.class)
     public ResponseEntity<ErrorResponse> handleInvalidAiResponse(
             InvalidAiResponseException exception,
@@ -105,13 +122,22 @@ public class GlobalExceptionHandler {
             String message,
             HttpServletRequest request
     ) {
-        ErrorResponse response = new ErrorResponse(
+        ErrorResponse response = errorResponse(status, error, message, request);
+        return ResponseEntity.status(status).body(response);
+    }
+
+    private ErrorResponse errorResponse(
+            HttpStatus status,
+            String error,
+            String message,
+            HttpServletRequest request
+    ) {
+        return new ErrorResponse(
                 Instant.now(),
                 status.value(),
                 error,
                 message,
                 request.getRequestURI()
         );
-        return ResponseEntity.status(status).body(response);
     }
 }
