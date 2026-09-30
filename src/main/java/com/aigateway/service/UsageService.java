@@ -11,9 +11,14 @@ import org.springframework.stereotype.Service;
 public class UsageService {
 
     private final ConversationRepository conversationRepository;
+    private final CostEstimationService costEstimationService;
 
-    public UsageService(ConversationRepository conversationRepository) {
+    public UsageService(
+            ConversationRepository conversationRepository,
+            CostEstimationService costEstimationService
+    ) {
         this.conversationRepository = conversationRepository;
+        this.costEstimationService = costEstimationService;
     }
 
     public UsageResponse getUsage() {
@@ -37,7 +42,16 @@ public class UsageService {
                 .count();
         double errorRate = requests == 0 ? 0.0 : (double) errors / requests;
 
-        return new UsageResponse(requests, tokens, averageLatencyMs, errorRate);
+        CostEstimationService.CostEstimate costEstimate = costEstimationService.estimate(conversations);
+
+        return new UsageResponse(
+                requests,
+                tokens,
+                averageLatencyMs,
+                errorRate,
+                costEstimate.estimatedCostUsd(),
+                costEstimate.available()
+        );
     }
 
     private long valueOrZero(Long value) {

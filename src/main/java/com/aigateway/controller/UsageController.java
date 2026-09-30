@@ -20,7 +20,7 @@ public class UsageController {
     }
 
     @GetMapping("/usage")
-    @Operation(summary = "Get aggregated usage metrics")
+    @Operation(summary = "Get aggregated usage metrics and configured cost estimation")
     public UsageResponse getUsage() {
         return usageService.getUsage();
     }
