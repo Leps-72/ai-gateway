@@ -1,0 +1,163 @@
+{
+  "info": {
+    "_postman_id": "fdbe742a-3f06-4ef8-b6de-662524bc083d",
+    "name": "AI Gateway",
+    "description": "API examples for the AI Gateway challenge project.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Health",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});"
+        ]}
+      }],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {"raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"]},
+        "description": "Checks whether the AI Gateway application is running."
+      }
+    },
+    {
+      "name": "02 - Register",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Registration is created or username already exists\", function () {",
+          "    pm.expect([201, 409]).to.include(pm.response.code);",
+          "});"
+        ]}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"demo\",\n  \"password\": \"password123\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {"raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"]},
+        "description": "Registers the demo user. A 409 response is expected if the username already exists."
+      }
+    },
+    {
+      "name": "03 - Login",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});",
+          "",
+          "if (pm.response.code === 200) {",
+          "    const response = pm.response.json();",
+          "    pm.expect(response).to.have.property(\"token\");",
+          "    pm.collectionVariables.set(\"jwtToken\", response.token);",
+          "}"
+        ]}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"demo\",\n  \"password\": \"password123\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {"raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"]},
+        "description": "Logs in the demo user and automatically saves the returned JWT as the jwtToken collection variable."
+      }
+    },
+    {
+      "name": "04 - AI Chat",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});"
+        ]}
+      }],
+      "request": {
+        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{jwtToken}}", "type": "string"}]},
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Explain REST API in one sentence.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {"raw": "{{baseUrl}}/ai/chat", "host": ["{{baseUrl}}"], "path": ["ai", "chat"]},
+        "description": "Sends a generic chat message to Gemini through the authenticated gateway."
+      }
+    },
+    {
+      "name": "05 - AI Analyze",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});"
+        ]}
+      }],
+      "request": {
+        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{jwtToken}}", "type": "string"}]},
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json", "type": "text"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Users report that checkout is extremely slow.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {"raw": "{{baseUrl}}/ai/analyze", "host": ["{{baseUrl}}"], "path": ["ai", "analyze"]},
+        "description": "Analyzes text through Gemini and returns the structured analysis response."
+      }
+    },
+    {
+      "name": "06 - Conversations",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});"
+        ]}
+      }],
+      "request": {
+        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{jwtToken}}", "type": "string"}]},
+        "method": "GET",
+        "header": [],
+        "url": {"raw": "{{baseUrl}}/conversations", "host": ["{{baseUrl}}"], "path": ["conversations"]},
+        "description": "Returns stored AI conversations using the JWT obtained from login."
+      }
+    },
+    {
+      "name": "07 - Usage",
+      "event": [{
+        "listen": "test",
+        "script": {"type": "text/javascript", "exec": [
+          "pm.test(\"Status code is 200\", function () {",
+          "    pm.response.to.have.status(200);",
+          "});"
+        ]}
+      }],
+      "request": {
+        "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{jwtToken}}", "type": "string"}]},
+        "method": "GET",
+        "header": [],
+        "url": {"raw": "{{baseUrl}}/usage", "host": ["{{baseUrl}}"], "path": ["usage"]},
+        "description": "Returns aggregated AI usage metrics using the saved JWT."
+      }
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080", "type": "string"},
+    {"key": "jwtToken", "value": "", "type": "string"}
+  ]
+}
