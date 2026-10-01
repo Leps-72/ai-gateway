@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UsageServiceTest {
@@ -24,10 +25,10 @@ class UsageServiceTest {
         Conversation success = conversation("success", 100L, 50L, 200L);
         Conversation error = conversation("error", 50L, 25L, 400L);
         ConversationRepository repository = mock(ConversationRepository.class);
-        when(repository.findAll()).thenReturn(List.of(success, error));
+        when(repository.findByUserId(7L)).thenReturn(List.of(success, error));
 
         UsageService usageService = new UsageService(repository, costEstimationService());
-        UsageResponse response = usageService.getUsage();
+        UsageResponse response = usageService.getUsage(7L);
 
         assertEquals(2L, response.getRequests());
         assertEquals(225L, response.getTokens());
@@ -43,6 +44,30 @@ class UsageServiceTest {
         assertTrue(json.has("errorRate"));
         assertTrue(json.has("estimatedCostUsd"));
         assertTrue(json.has("costEstimationAvailable"));
+        verify(repository).findByUserId(7L);
+    }
+
+    @Test
+    void calculatesUsageIndependentlyForEachUser() {
+        Conversation userAFirst = conversation("success", 100L, 50L, 100L);
+        Conversation userASecond = conversation("error", 20L, 10L, 300L);
+        Conversation userBOnly = conversation("success", 1_000L, 500L, 900L);
+        ConversationRepository repository = mock(ConversationRepository.class);
+        when(repository.findByUserId(1L)).thenReturn(List.of(userAFirst, userASecond));
+        when(repository.findByUserId(2L)).thenReturn(List.of(userBOnly));
+        UsageService usageService = new UsageService(repository, costEstimationService());
+
+        UsageResponse userAUsage = usageService.getUsage(1L);
+        UsageResponse userBUsage = usageService.getUsage(2L);
+
+        assertEquals(2L, userAUsage.getRequests());
+        assertEquals(180L, userAUsage.getTokens());
+        assertEquals(200.0, userAUsage.getAverageLatencyMs());
+        assertEquals(0.5, userAUsage.getErrorRate());
+        assertEquals(1L, userBUsage.getRequests());
+        assertEquals(1_500L, userBUsage.getTokens());
+        assertEquals(900.0, userBUsage.getAverageLatencyMs());
+        assertEquals(0.0, userBUsage.getErrorRate());
     }
 
     private CostEstimationService costEstimationService() {

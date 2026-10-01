@@ -19,6 +19,7 @@ import com.aigateway.exception.InvalidAiResponseException;
 import com.aigateway.provider.AiProvider;
 import com.aigateway.provider.AiProviderResult;
 import com.aigateway.provider.AnalyzeProviderResult;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,6 @@ import java.util.Set;
 @Service("geminiProvider")
 public class GeminiService implements AiProvider {
 
-    private static final String MODEL = "gemini-3.8-flash";
     private static final Set<String> RESPONSE_FIELDS =
             Set.of("summary", "sentiment", "category", "priority");
     private static final Set<String> SENTIMENTS = Set.of("positive", "neutral", "negative");
@@ -63,18 +63,21 @@ public class GeminiService implements AiProvider {
             .responseSchema(ANALYZE_SCHEMA)
             .build();
 
-    private final Client client;
     private final ObjectMapper objectMapper;
+    private final String model;
+    private final ContentGenerator contentGenerator;
 
+    @Autowired
     public GeminiService(
             ObjectMapper objectMapper,
+            @Value("${ai.gemini.model}") String model,
             @Value("${ai.request-timeout-seconds:10}") int requestTimeoutSeconds,
             @Value("${ai.max-attempts:3}") int maxAttempts,
             @Value("${ai.retry-backoff-ms:500}") long retryBackoffMs
     ) {
         validateConfiguration(requestTimeoutSeconds, maxAttempts, retryBackoffMs);
         String apiKey = System.getenv("GEMINI_API_KEY");
-        this.client = apiKey == null || apiKey.isBlank()
+        Client client = apiKey == null || apiKey.isBlank()
                 ? null
                 : Client.builder()
                         .apiKey(apiKey)
@@ -85,16 +88,24 @@ public class GeminiService implements AiProvider {
                         ))
                         .build();
         this.objectMapper = objectMapper;
+        this.model = validateModel(model);
+        this.contentGenerator = client == null ? null : client.models::generateContent;
+    }
+
+    GeminiService(ObjectMapper objectMapper, String model, ContentGenerator contentGenerator) {
+        this.objectMapper = objectMapper;
+        this.model = validateModel(model);
+        this.contentGenerator = contentGenerator;
     }
 
     @Override
     public AiProviderResult chat(String message) {
-        if (client == null) {
+        if (contentGenerator == null) {
             throw new AiProviderException("AI provider is not configured.");
         }
 
         try {
-            GenerateContentResponse response = client.models.generateContent(MODEL, message, null);
+            GenerateContentResponse response = contentGenerator.generate(model, message, null);
             String responseText = response.text();
             if (responseText == null || responseText.isBlank()) {
                 throw new InvalidAiResponseException("Gemini returned an empty response.");
@@ -112,7 +123,7 @@ public class GeminiService implements AiProvider {
 
     @Override
     public AnalyzeProviderResult analyze(String text) {
-        if (client == null) {
+        if (contentGenerator == null) {
             throw new AiProviderException("AI provider is not configured.");
         }
 
@@ -121,8 +132,8 @@ public class GeminiService implements AiProvider {
                 + text;
 
         try {
-            GenerateContentResponse response = client.models.generateContent(
-                    MODEL,
+            GenerateContentResponse response = contentGenerator.generate(
+                    model,
                     prompt,
                     ANALYZE_CONFIG
             );
@@ -219,6 +230,13 @@ public class GeminiService implements AiProvider {
         }
     }
 
+    private static String validateModel(String model) {
+        if (model == null || model.isBlank()) {
+            throw new IllegalStateException("Gemini model configuration is required.");
+        }
+        return model.trim();
+    }
+
     private RuntimeException mapProviderException(RuntimeException exception) {
         if (exception instanceof AiProviderException aiProviderException) {
             return aiProviderException;
@@ -270,7 +288,17 @@ public class GeminiService implements AiProvider {
 
     @Override
     public String getModelName() {
-        return MODEL;
+        return model;
+    }
+
+    @FunctionalInterface
+    interface ContentGenerator {
+
+        GenerateContentResponse generate(
+                String model,
+                String content,
+                GenerateContentConfig config
+        );
     }
 
     private record AnalyzeContent(

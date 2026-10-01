@@ -1,7 +1,10 @@
 package com.aigateway.security;
 
+import com.aigateway.AiGatewayApplication;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -9,8 +12,18 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SecurityConfigTest {
+
+    @Test
+    void applicationExcludesDefaultUserDetailsAutoConfiguration() {
+        SpringBootApplication annotation = AiGatewayApplication.class
+                .getAnnotation(SpringBootApplication.class);
+
+        assertTrue(java.util.Arrays.asList(annotation.exclude())
+                .contains(UserDetailsServiceAutoConfiguration.class));
+    }
 
     @Test
     void configuresExplicitFrontendOriginsWithoutWildcard() {

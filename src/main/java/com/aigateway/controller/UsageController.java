@@ -1,10 +1,12 @@
 package com.aigateway.controller;
 
 import com.aigateway.dto.UsageResponse;
+import com.aigateway.security.AuthenticatedUser;
 import com.aigateway.service.UsageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,7 +23,8 @@ public class UsageController {
 
     @GetMapping("/usage")
     @Operation(summary = "Get aggregated usage metrics and configured cost estimation")
-    public UsageResponse getUsage() {
-        return usageService.getUsage();
+    public UsageResponse getUsage(Authentication authentication) {
+        Long userId = ((AuthenticatedUser) authentication.getPrincipal()).userId();
+        return usageService.getUsage(userId);
     }
 }

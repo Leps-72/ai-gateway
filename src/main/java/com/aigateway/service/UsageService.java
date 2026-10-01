@@ -21,8 +21,8 @@ public class UsageService {
         this.costEstimationService = costEstimationService;
     }
 
-    public UsageResponse getUsage() {
-        List<Conversation> conversations = conversationRepository.findAll();
+    public UsageResponse getUsage(Long userId) {
+        List<Conversation> conversations = conversationRepository.findByUserId(userId);
         long requests = conversations.size();
 
         long tokens = conversations.stream()

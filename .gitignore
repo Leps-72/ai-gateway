@@ -3,6 +3,10 @@ data/
 
 .env
 .env.*
+secrets/
+*.pem
+*.key
+application-secrets.properties
 *.log
 *.mv.db
 *.trace.db

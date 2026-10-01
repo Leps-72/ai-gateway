@@ -42,7 +42,7 @@ public class ConversationService {
         return conversationRepository.save(conversation);
     }
 
-    public List<Conversation> getAllConversations() {
-        return conversationRepository.findAll();
+    public List<Conversation> getConversationsByUserId(Long userId) {
+        return conversationRepository.findByUserId(userId);
     }
 }

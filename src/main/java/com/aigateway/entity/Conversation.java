@@ -2,19 +2,27 @@ package com.aigateway.entity;
 
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
 
 @Entity
+@Table(
+        name = "conversation",
+        indexes = @Index(name = "idx_conversation_user_id", columnList = "user_id")
+)
 public class Conversation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Lob
     private String message;
     private String status;
     private LocalDateTime createdAt;
@@ -27,6 +35,7 @@ public class Conversation {
     private Long inputTokens;
     private Long outputTokens;
     private Long latencyMs;
+    @Column(name = "user_id")
     private Long userId;
 
     public Conversation() {
